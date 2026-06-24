@@ -1,0 +1,153 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+datasource db {
+  provider = "postgresql"
+  // Borra o comenta la línea de: url = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+
+// --- ENUMS ---
+enum UserRole {
+  ADMIN
+  SELLER
+}
+
+enum ItemCondition {
+  NEW
+  SEMI_NEW
+}
+
+enum ItemStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  QR
+  CARD
+}
+
+// --- MODELOS ---
+
+model Tenant {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String    @db.VarChar(100)
+  slug      String    @unique @db.VarChar(50)
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relaciones
+  users    User[]
+  products Product[]
+  items    Item[]
+  sales    Sale[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  name         String    @db.VarChar(100)
+  email        String    @unique @db.VarChar(100)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  mustChangePassword Boolean   @default(true) @map("must_change_password") // <-- NUEVO CAMPO
+  role         UserRole  @default(SELLER)
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relaciones
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sales  Sale[]
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+model Product {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  model          String   @db.VarChar(50)
+  storage        String   @db.VarChar(20)
+  color          String   @db.VarChar(30)
+  suggestedPrice Decimal? @map("suggested_price") @db.Decimal(10, 2)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  isActive    Boolean  @default(true) @map("is_active") // <-- AGREGA ESTA LÍNEA
+  // Relaciones
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  Item[]
+
+  @@unique([tenantId, model, storage, color], name: "unique_product_tenant")
+  @@index([tenantId])
+  @@map("products")
+}
+
+model Item {
+  id            String        @id @default(uuid()) @db.Uuid
+  tenantId      String        @map("tenant_id") @db.Uuid
+  productId     String        @map("product_id") @db.Uuid
+  imei          String        @unique @db.VarChar(15)
+  serialNumber  String?       @map("serial_number") @db.VarChar(30)
+  batteryHealth Int?          @map("battery_health")
+  condition     ItemCondition @default(NEW)
+  status        ItemStatus    @default(AVAILABLE)
+  costPrice     Decimal?      @map("cost_price") @db.Decimal(10, 2)
+  salePrice     Decimal?      @map("sale_price") @db.Decimal(10, 2)
+  notes         String?       @db.Text
+  images        String[]      @default([])
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relaciones
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product     Product      @relation(fields: [productId], references: [id])
+  saleDetails SaleDetail?
+
+  @@index([tenantId, status])
+  @@map("items")
+}
+
+model Sale {
+  id            String        @id @default(uuid()) @db.Uuid
+  tenantId      String        @map("tenant_id") @db.Uuid
+  userId        String?       @map("user_id") @db.Uuid
+  clientName    String        @map("client_name") @db.VarChar(100)
+  clientPhone   String?       @map("client_phone") @db.VarChar(20)
+  paymentMethod PaymentMethod @map("payment_method")
+  totalAmount   Decimal       @default(0.00) @map("total_amount") @db.Decimal(10, 2)
+  saleDate      DateTime      @default(now()) @map("sale_date") @db.Timestamptz
+
+  // Relaciones
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User?        @relation(fields: [userId], references: [id])
+  saleDetails SaleDetail[]
+
+  @@index([tenantId])
+  @@map("sales")
+}
+
+model SaleDetail {
+  id        String  @id @default(uuid()) @db.Uuid
+  saleId    String  @map("sale_id") @db.Uuid
+  itemId    String  @unique @map("item_id") @db.Uuid
+  priceSold Decimal @map("price_sold") @db.Decimal(10, 2)
+
+  // Relaciones
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id])
+
+  @@map("sale_details")
+}
+
