@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { join } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -24,9 +25,19 @@ async function bootstrap() {
 
   
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
-    prefix: '/uploads/', // El prefijo en la URL (ej: localhost:3000/uploads/...)
+    prefix: '/uploads/',
   });
 
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Chato POS API')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api', app, document, {
+    jsonDocumentUrl: 'api-json',
+  });
 
   await app.listen(process.env.PORT ?? 3000);
 }

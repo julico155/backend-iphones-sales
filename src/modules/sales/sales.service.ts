@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
-import { ItemStatus, PaymentMethod } from '@prisma/client';
+import { ItemStatus, PaymentMethod, SaleStatus } from '@prisma/client';
 
 @Injectable()
 export class SalesService {
@@ -185,7 +185,7 @@ export class SalesService {
     // Supongamos que manejas un campo o estado. Si no tienes un ENUM, puedes usar strings planos o agregar un campo si fuera necesario.
     // Si tu esquema no tiene la columna 'status', la agregaremos conceptualmente o usamos lo que tengas mapeado. 
     // Asumiendo que agregaste el estado en tu ENUM o string:
-    if ((sale as any).status === 'CANCELLED') {
+    if (sale.status === SaleStatus.CANCELLED) {
       throw new BadRequestException('Esta venta ya se encuentra anulada.');
     }
 
@@ -196,10 +196,7 @@ export class SalesService {
       // Nota: Si no tienes el campo status en tu modelo físico todavía, recuerda agregarlo como string o enum.
       const updatedSale = await tx.sale.update({
         where: { id },
-        data: { 
-          // Si tienes el campo status mapeado:
-          status: 'CANCELLED' 
-        } as any,
+        data: { status: SaleStatus.CANCELLED },
       });
 
       // B. Extraer todos los IDs de los ítems (los dispositivos físicos) de los detalles

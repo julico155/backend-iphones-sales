@@ -1,9 +1,9 @@
-import { IsString, IsArray, IsNumber, IsNotEmpty, ValidateNested, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsArray, IsNumber, IsNotEmpty, ValidateNested, IsOptional, IsEnum, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaymentMethod } from '@prisma/client';
 
 class SaleDetailDto {
-  @IsString()
+  @IsUUID('4')
   @IsNotEmpty()
   itemId!: string;
 

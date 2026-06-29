@@ -17,7 +17,7 @@ export class JwtAuthGuard implements CanActivate {
     try {
       // Verificamos el token con la clave secreta
       const payload = await this.jwtService.verifyAsync(token, {
-        secret: process.env.JWT_SECRET || 'ClaveSecretaSuperSegura123',
+        secret: process.env.JWT_SECRET,
       });
       
       // Inyectamos el usuario decodificado (id, email, role, tenantId) en el request

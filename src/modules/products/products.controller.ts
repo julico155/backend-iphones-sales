@@ -1,9 +1,13 @@
-import { Controller, Post, Body, Headers, BadRequestException, Get, Param, ParseUUIDPipe, Patch, Delete } from '@nestjs/common';import { ProductsService } from './products.service';
+import { Controller, Post, Body, Headers, BadRequestException, Get, Param, ParseUUIDPipe, Patch, Delete, UseGuards } from '@nestjs/common';
+import { ProductsService } from './products.service';
 import { GetTenantId } from '../../common/decorators/get-tenant.decorator';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TenantGuard } from '../auth/guards/tenant.guard';
 
 @Controller('products')
+@UseGuards(JwtAuthGuard, TenantGuard)
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 

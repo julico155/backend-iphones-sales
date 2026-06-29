@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Body, UseInterceptors, UploadedFiles, Param, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, UseInterceptors, UploadedFiles, Param, ParseUUIDPipe, UseGuards } from '@nestjs/common';
 import { ItemsService } from './items.service';
 import { GetTenantId } from '../../common/decorators/get-tenant.decorator';
 import { ItemCondition } from '@prisma/client';
@@ -7,8 +7,11 @@ import { extname } from 'path';
 import { diskStorage, Multer } from 'multer';
 import { CreateItemDto } from './dto/create-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { TenantGuard } from '../auth/guards/tenant.guard';
 
 @Controller('items')
+@UseGuards(JwtAuthGuard, TenantGuard)
 export class ItemsController {
   constructor(private readonly itemsService: ItemsService) {}
 
@@ -31,7 +34,7 @@ export class ItemsController {
     @UploadedFiles() files: Multer.File[],
   ) {
     // Mapeamos las fotos locales e inyectamos directamente al DTO
-    createItemDto.images = files?.map(file => `http://localhost:3000/uploads/${file.filename}`) || [];
+    createItemDto.images = files?.map(file => `${process.env.APP_URL ?? 'http://localhost:3000'}/uploads/${file.filename}`) || [];
 
     return this.itemsService.create(tenantId, createItemDto);
   }
@@ -73,7 +76,7 @@ export class ItemsController {
     @UploadedFiles() files: Multer.File[],
   ) {
     // 1. Mapeamos las URLs de las fotos NUEVAS que se acaban de subir
-    const newImageUrls = files?.map(file => `http://localhost:3000/uploads/${file.filename}`) || [];
+    const newImageUrls = files?.map(file => `${process.env.APP_URL ?? 'http://localhost:3000'}/uploads/${file.filename}`) || [];
 
     // 2. Recuperamos las imágenes que el usuario decidió conservar del pasado
     const keepImages = updateItemDto.existingImages || [];

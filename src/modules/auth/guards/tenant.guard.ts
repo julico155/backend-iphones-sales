@@ -13,13 +13,7 @@ export class TenantGuard implements CanActivate {
       throw new UnauthorizedException('Usuario no autenticado.');
     }
 
-    // 1. REGLA MAESTRA: Si eres el dueño del SaaS (Tenant Maestro), puedes operar en cualquier lado
-    // Asumiendo que guardamos tu rol o validamos por el slug del tenant maestro
-    if (user.email === 'julio@saas.com') {
-      return true;
-    }
-
-    // 2. Si no viene el header, bloqueamos por seguridad en endpoints condomino
+    // Si no viene el header, bloqueamos por seguridad
     if (!headerTenantId) {
       throw new ForbiddenException('Falta la cabecera X-Tenant-ID.');
     }

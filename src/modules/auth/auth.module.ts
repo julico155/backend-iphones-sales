@@ -9,7 +9,7 @@ import { PrismaService } from '../../../prisma/prisma.service'; // Ajusta la rut
   imports: [
     JwtModule.register({
       global: true,
-      secret: process.env.JWT_SECRET || 'ClaveSecretaSuperSegura123',
+      secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '1d' }, // El token dura 1 día
     }),
   ],
