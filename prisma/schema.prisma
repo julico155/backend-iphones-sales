@@ -5,7 +5,6 @@
 
 datasource db {
   provider = "postgresql"
-  // Borra o comenta la línea de: url = env("DATABASE_URL")
 }
 
 generator client {
