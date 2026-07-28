@@ -95,12 +95,13 @@ export class SalesService {
 
 
   async getHistoryByTenant(tenantId: string, query: SaleHistoryQueryDto) {
-    const { status, from, to, page = 1, limit = 20 } = query;
+    const { status, userId, from, to, page = 1, limit = 20 } = query;
     const skip = (page - 1) * limit;
 
     const where = {
       tenantId,
       ...(status && { status }),
+      ...(userId && { userId }),
       ...(from || to ? {
         saleDate: {
           ...(from && { gte: new Date(from) }),
@@ -135,30 +136,36 @@ export class SalesService {
     };
   }
 
-  // Endpoint 2: Métricas del Dashboard para la tienda
   async getDashboardSummary(tenantId: string) {
-    // 1. Sumar todo el totalAmount facturado por la tienda
-    const aggregations = await this.prisma.sale.aggregate({
-      where: { tenantId, status: SaleStatus.ACTIVE },
-      _sum: {
-        totalAmount: true,
-      },
-      _count: {
-        id: true,
-      }
-    });
+    const saleWhere = { tenantId, status: SaleStatus.ACTIVE };
 
-    // 2. Contar cuántos ítems específicos se han vendido en total
-    const totalItemsSold = await this.prisma.saleDetail.count({
-      where: {
-        sale: { tenantId, status: SaleStatus.ACTIVE }
-      }
-    });
+    const [aggregations, saleDetails, totalItemsSold] = await Promise.all([
+      this.prisma.sale.aggregate({
+        where: saleWhere,
+        _sum: { totalAmount: true },
+        _count: { id: true },
+      }),
+      this.prisma.saleDetail.findMany({
+        where: { sale: saleWhere },
+        include: { item: { select: { costPrice: true } } },
+      }),
+      this.prisma.saleDetail.count({ where: { sale: saleWhere } }),
+    ]);
+
+    const totalRevenue = Number(aggregations._sum.totalAmount ?? 0);
+    const totalCost = saleDetails.reduce((sum, d) => sum + Number(d.item.costPrice ?? 0), 0);
+    const grossProfit = totalRevenue - totalCost;
+    const profitMarginPercent = totalRevenue > 0
+      ? Number(((grossProfit / totalRevenue) * 100).toFixed(2))
+      : 0;
 
     return {
-      totalRevenue: aggregations._sum.totalAmount || 0, // Ganancia total en dinero
-      totalSalesCount: aggregations._count.id || 0,     // Cantidad de transacciones/notas de venta
-      totalIncentivesSold: totalItemsSold,              // Cantidad de iPhones físicos despachados
+      totalRevenue,
+      totalSalesCount: aggregations._count.id ?? 0,
+      totalItemsSold,
+      totalCost,
+      grossProfit,
+      profitMarginPercent,
     };
   }
 

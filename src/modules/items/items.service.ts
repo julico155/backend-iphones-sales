@@ -3,6 +3,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { CreateItemDto } from './dto/create-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
+import { ItemQueryDto } from './dto/item-query.dto';
 import { PLAN_LIMITS } from '../../common/constants/plan-limits';
 
 @Injectable()
@@ -13,7 +14,7 @@ export class ItemsService {
     const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
     const limits = PLAN_LIMITS[tenant!.plan];
     const activeItems = await this.prisma.item.count({
-      where: { tenantId, status: { in: ['AVAILABLE', 'RESERVED'] } },
+      where: { tenantId, status: 'AVAILABLE' },
     });
 
     if (activeItems >= limits.maxItems) {
@@ -31,11 +32,11 @@ export class ItemsService {
           serialNumber: data.serialNumber,
           batteryHealth: data.batteryHealth,
           condition: data.condition || 'NEW',
-          status: 'AVAILABLE', 
+          status: 'AVAILABLE',
           costPrice: data.costPrice,
           salePrice: data.salePrice,
           notes: data.notes,
-          images: data.images || [], // Almacena el array de URLs
+          images: data.images || [],
         },
       });
     } catch (error) {
@@ -63,31 +64,73 @@ export class ItemsService {
     return { message: 'Equipo dado de baja del inventario correctamente.' };
   }
 
-  // Obtener todo el stock de esta tienda, incluyendo los detalles del modelo
-  async findAll(tenantId: string) {
-    return this.prisma.item.findMany({
-      where: {
-        tenantId,
-        status: { not: 'INACTIVE' },
-      },
-      include: {
-        product: {
-          select: {
-            model: true,
-            storage: true,
-            color: true,
-          },
+  async findAll(tenantId: string, query: ItemQueryDto) {
+    const { status, page = 1, limit = 20 } = query;
+    const skip = (page - 1) * limit;
+
+    const where = {
+      tenantId,
+      status: status ?? { not: 'INACTIVE' as const },
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.item.findMany({
+        where,
+        include: {
+          product: { select: { model: true, storage: true, color: true } },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.item.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
+  async getInventorySummary(tenantId: string) {
+    const grouped = await this.prisma.item.groupBy({
+      by: ['productId', 'status'],
+      where: { tenantId },
+      _count: { _all: true },
+    });
+
+    const productIds = [...new Set(grouped.map(g => g.productId))];
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, model: true, storage: true, color: true },
+    });
+
+    const productMap = new Map(products.map(p => [p.id, p]));
+
+    const summary: Record<string, any> = {};
+    for (const row of grouped) {
+      if (!summary[row.productId]) {
+        summary[row.productId] = {
+          product: productMap.get(row.productId),
+          available: 0,
+          sold: 0,
+          inactive: 0,
+          total: 0,
+        };
+      }
+      summary[row.productId][row.status.toLowerCase()] = row._count._all;
+      summary[row.productId].total += row._count._all;
+    }
+
+    return Object.values(summary).sort((a: any, b: any) =>
+      b.available - a.available,
+    );
+  }
 
   async findOne(tenantId: string, id: string) {
     const item = await this.prisma.item.findFirst({
       where: { id, tenantId },
-      include: { product: true }, // Incluye los datos del modelo base (ej: nombre, marca)
+      include: { product: true },
     });
 
     if (!item) {
@@ -97,19 +140,14 @@ export class ItemsService {
     return item;
   }
 
-
-
   async findByImeiOrSerial(tenantId: string, search: string) {
     const item = await this.prisma.item.findFirst({
       where: {
         tenantId,
-        status: 'AVAILABLE', // Solo nos interesan los que se pueden vender
-        OR: [
-          { imei: search },
-          { serialNumber: search }
-        ]
+        status: 'AVAILABLE',
+        OR: [{ imei: search }, { serialNumber: search }],
       },
-      include: { product: true }
+      include: { product: true },
     });
 
     if (!item) {
@@ -119,18 +157,13 @@ export class ItemsService {
     return item;
   }
 
-
   async update(tenantId: string, id: string, data: UpdateItemDto) {
-    // 1. Validar existencia y pertenencia al Tenant
-    const item = await this.prisma.item.findFirst({
-      where: { id, tenantId },
-    });
+    const item = await this.prisma.item.findFirst({ where: { id, tenantId } });
 
     if (!item) {
       throw new NotFoundException(`El equipo con ID '${id}' no pertenece a tu tienda o no existe.`);
     }
 
-    // 2. Actualizar en la base de datos
     return await this.prisma.item.update({
       where: { id },
       data: {
@@ -140,10 +173,8 @@ export class ItemsService {
         costPrice: data.costPrice,
         salePrice: data.salePrice,
         notes: data.notes,
-        images: data.images, 
+        images: data.images,
       },
     });
   }
-
-
 }

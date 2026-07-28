@@ -1,4 +1,5 @@
 import { Controller, Post, Body, UseGuards, Request, Get } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -9,21 +10,20 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
 
   @Post('update-password')
-  @UseGuards(JwtAuthGuard) // Cualquiera con token válido puede acceder a su propio cambio de clave
+  @UseGuards(JwtAuthGuard)
   async updatePassword(@Request() req: any, @Body() updatePasswordDto: UpdatePasswordDto) {
     return this.authService.updatePassword(req.user.sub, updatePasswordDto);
   }
 
-
   @Get('profile')
-  @UseGuards(JwtAuthGuard) // Protegido: requiere token válido
+  @UseGuards(JwtAuthGuard)
   async getProfile(@Request() req: any) {
-    // Extraemos el sub (id del usuario) que el Guardia inyectó en el token
     return this.authService.getProfile(req.user.sub);
   }
 }

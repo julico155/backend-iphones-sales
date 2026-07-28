@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Headers, BadRequestException, Get, Param, ParseUUIDPipe, Patch, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, ParseUUIDPipe, Patch, Delete, UseGuards } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { GetTenantId } from '../../common/decorators/get-tenant.decorator';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -17,13 +17,6 @@ export class ProductsController {
     @GetTenantId() tenantId: string,
     @Body() createProductDto: CreateProductDto
   ) {
-    console.log('Tenant ID recibido en el header:', tenantId);
-    // Validación de seguridad por si te olvidas de ponerlo en Postman
-    if (!tenantId) {
-      throw new BadRequestException('El header X-Tenant-ID es requerido para registrar productos.');
-    }
-
-    // Ya con el tenantId seguro y aislado, llamamos al servicio
     return this.productsService.create(tenantId, createProductDto);
   }
 
