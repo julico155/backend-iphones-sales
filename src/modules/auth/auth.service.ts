@@ -54,47 +54,6 @@ export class AuthService {
 
 
 
-  async createFirstAdmin() {
-    // 1. Creamos o buscamos el Tenant Maestro del Sistema (Landlord)
-    const systemTenant = await this.prisma.tenant.upsert({
-      where: { slug: 'system-admin' },
-      update: {},
-      create: {
-        name: 'System Admin Global',
-        slug: 'system-admin',
-      },
-    });
-
-    // 2. Encriptamos tu contraseña master
-    const passwordHash = await bcrypt.hash('admin123', 10);
-
-    // 3. Creamos tu usuario dueño del SaaS amarrado al Tenant del sistema
-    const superAdmin = await this.prisma.user.upsert({
-      where: { email: 'julio@saas.com' }, // Tu correo maestro
-      update: {},
-      create: {
-        tenantId: systemTenant.id,
-        name: 'Julio Alejandro',
-        email: 'julio@saas.com',
-        passwordHash: passwordHash,
-        role: 'ADMIN',
-        isActive: true,
-      },
-    });
-
-    return {
-      message: '¡Entorno SaaS Global inicializado!',
-      tenantMasterId: systemTenant.id,
-      user: {
-        email: superAdmin.email,
-        role: superAdmin.role,
-        tenantName: systemTenant.name,
-      },
-    };
-  }
-
-
-
   async updatePassword(userId: string, updatePasswordDto: UpdatePasswordDto) {
     const { currentPassword, newPassword } = updatePasswordDto;
 

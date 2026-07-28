@@ -1,6 +1,7 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { CreateTeamUserDto } from './dto/create-team-user.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -10,37 +11,22 @@ export class UsersService {
   async create(createUserDto: CreateUserDto) {
     const { name, email, password, role, tenantId } = createUserDto;
 
-    // 1. Verificar si el Tenant realmente existe
-    const tenantExists = await this.prisma.tenant.findUnique({
-      where: { id: tenantId },
-    });
+    const tenantExists = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
     if (!tenantExists) {
       throw new NotFoundException(`El Tenant con ID '${tenantId}' no existe.`);
     }
 
-    // 2. Verificar si el email ya está registrado
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email },
-    });
+    const existingUser = await this.prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       throw new ConflictException(`El correo electrónico '${email}' ya está registrado.`);
     }
 
-    // 3. Encriptar la contraseña
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // 4. Crear el usuario
     const user = await this.prisma.user.create({
-      data: {
-        name,
-        email,
-        passwordHash,
-        role,
-        tenantId,
-      },
+      data: { name, email, passwordHash, role, tenantId },
     });
 
-    // Retornamos el objeto sin el passwordHash por seguridad
     return {
       id: user.id,
       name: user.name,
@@ -52,7 +38,6 @@ export class UsersService {
     };
   }
 
-  // Listar todos los usuarios del sistema (Acceso para el dueño del SaaS)
   async findAllGlobal() {
     return this.prisma.user.findMany({
       select: {
@@ -61,16 +46,13 @@ export class UsersService {
         email: true,
         role: true,
         isActive: true,
-        tenant: {
-          select: { name: true, slug: true },
-        },
+        tenant: { select: { name: true, slug: true } },
         mustChangePassword: true,
       },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  // Listar usuarios filtrados por un Tenant específico (Acceso para el ADMIN de una tienda)
   async findAllByTenant(tenantId: string) {
     return this.prisma.user.findMany({
       where: { tenantId },
@@ -80,8 +62,58 @@ export class UsersService {
         email: true,
         role: true,
         isActive: true,
+        mustChangePassword: true,
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async createForTenant(tenantId: string, dto: CreateTeamUserDto) {
+    const { name, email, password, role } = dto;
+
+    const existingUser = await this.prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      throw new ConflictException(`El correo '${email}' ya está registrado.`);
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const user = await this.prisma.user.create({
+      data: { name, email, passwordHash, role, tenantId, mustChangePassword: true },
+    });
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+      mustChangePassword: user.mustChangePassword,
+    };
+  }
+
+  async toggleActive(tenantId: string, userId: string, requestingUserId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, tenantId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`El usuario con ID '${userId}' no existe en esta tienda.`);
+    }
+
+    if (userId === requestingUserId) {
+      throw new BadRequestException('No puedes desactivar tu propio usuario.');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { isActive: !user.isActive },
+      select: { id: true, name: true, email: true, role: true, isActive: true },
+    });
+
+    return {
+      message: `Usuario ${updated.isActive ? 'activado' : 'desactivado'} correctamente.`,
+      user: updated,
+    };
   }
 }

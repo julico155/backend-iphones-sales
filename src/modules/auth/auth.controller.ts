@@ -13,11 +13,6 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
-  @Post('setup-initial-admin')
-  async setupAdmin() {
-    return this.authService.createFirstAdmin();
-  }
-
   @Post('update-password')
   @UseGuards(JwtAuthGuard) // Cualquiera con token válido puede acceder a su propio cambio de clave
   async updatePassword(@Request() req: any, @Body() updatePasswordDto: UpdatePasswordDto) {

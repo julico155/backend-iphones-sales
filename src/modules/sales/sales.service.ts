@@ -47,7 +47,7 @@ export class SalesService {
           tenantId: tenantId,
           clientName: customerName || 'Cliente Mostrador',
           clientPhone: customerPhone || null,
-          paymentMethod: PaymentMethod.CASH, // Puedes cambiarlo dinámicamente si lo pasas en el DTO
+          paymentMethod: paymentMethod,
           totalAmount: totalAmount,
         },
       });
@@ -114,7 +114,7 @@ export class SalesService {
   async getDashboardSummary(tenantId: string) {
     // 1. Sumar todo el totalAmount facturado por la tienda
     const aggregations = await this.prisma.sale.aggregate({
-      where: { tenantId },
+      where: { tenantId, status: SaleStatus.ACTIVE },
       _sum: {
         totalAmount: true,
       },
@@ -126,7 +126,7 @@ export class SalesService {
     // 2. Contar cuántos ítems específicos se han vendido en total
     const totalItemsSold = await this.prisma.saleDetail.count({
       where: {
-        sale: { tenantId }
+        sale: { tenantId, status: SaleStatus.ACTIVE }
       }
     });
 
