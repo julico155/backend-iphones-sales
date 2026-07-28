@@ -1,7 +1,8 @@
-import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { CreateTeamUserDto } from './dto/create-team-user.dto';
+import { PLAN_LIMITS } from '../../common/constants/plan-limits';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -70,6 +71,16 @@ export class UsersService {
 
   async createForTenant(tenantId: string, dto: CreateTeamUserDto) {
     const { name, email, password, role } = dto;
+
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    const limits = PLAN_LIMITS[tenant!.plan];
+    const currentUsers = await this.prisma.user.count({ where: { tenantId, isActive: true } });
+
+    if (currentUsers >= limits.maxUsers) {
+      throw new ForbiddenException(
+        `Tu plan ${tenant!.plan} permite máximo ${limits.maxUsers} usuarios activos. Contacta al administrador para actualizar tu plan.`,
+      );
+    }
 
     const existingUser = await this.prisma.user.findUnique({ where: { email } });
     if (existingUser) {

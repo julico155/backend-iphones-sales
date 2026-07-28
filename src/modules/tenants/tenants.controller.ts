@@ -1,8 +1,8 @@
 import { Controller, Post, Body, Get, Patch, Param, ParseUUIDPipe, UseGuards } from '@nestjs/common';
 import { TenantsService } from './tenants.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'; // Tu guardia JWT
-import { RolesGuard } from '../../common/guard/roles.guard'; // Tu guardia de roles
+import { UpdateTenantPlanDto } from './dto/update-tenant-plan.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminSaaSGuard } from '../auth/guards/admin-saas.guard';
 
 @Controller('tenants')
@@ -18,6 +18,14 @@ export class TenantsController {
   @Get()
   async findAll() {
     return this.tenantsService.findAll();
+  }
+
+  @Patch(':id/plan')
+  async updatePlan(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateTenantPlanDto,
+  ) {
+    return this.tenantsService.updatePlan(id, dto);
   }
 
   @Patch(':id/toggle')

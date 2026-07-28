@@ -1,6 +1,7 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
+import { UpdateTenantPlanDto } from './dto/update-tenant-plan.dto';
 
 @Injectable()
 export class TenantsService {
@@ -31,6 +32,29 @@ export class TenantsService {
     return await this.prisma.tenant.findMany({
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async updatePlan(id: string, dto: UpdateTenantPlanDto) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id } });
+
+    if (!tenant) {
+      throw new NotFoundException(`El tenant con ID '${id}' no existe.`);
+    }
+
+    if (tenant.slug === 'system-admin') {
+      throw new ConflictException('No se puede modificar el tenant del sistema.');
+    }
+
+    const updated = await this.prisma.tenant.update({
+      where: { id },
+      data: { plan: dto.plan },
+      select: { id: true, name: true, slug: true, plan: true, isActive: true },
+    });
+
+    return {
+      message: `Plan actualizado a ${updated.plan} correctamente.`,
+      tenant: updated,
+    };
   }
 
   async toggleActive(id: string) {

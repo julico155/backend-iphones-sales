@@ -1,15 +1,27 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { ItemCondition, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { CreateItemDto } from './dto/create-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
+import { PLAN_LIMITS } from '../../common/constants/plan-limits';
 
 @Injectable()
 export class ItemsService {
   constructor(private prisma: PrismaService) {}
 
-  // Registrar un iPhone físico ingresando a stock
-  async create(tenantId: string, data: CreateItemDto) { // <-- Tipado estricto con el DTO
+  async create(tenantId: string, data: CreateItemDto) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    const limits = PLAN_LIMITS[tenant!.plan];
+    const activeItems = await this.prisma.item.count({
+      where: { tenantId, status: { in: ['AVAILABLE', 'RESERVED'] } },
+    });
+
+    if (activeItems >= limits.maxItems) {
+      throw new ForbiddenException(
+        `Tu plan ${tenant!.plan} permite máximo ${limits.maxItems} equipos activos en inventario. Contacta al administrador para actualizar tu plan.`,
+      );
+    }
+
     try {
       return await this.prisma.item.create({
         data: {
