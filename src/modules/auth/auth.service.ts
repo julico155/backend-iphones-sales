@@ -31,11 +31,12 @@ export class AuthService {
     }
 
     // 3. Generar el Payload del JWT incluyendo el tenantId y su rol
-    const payload = { 
-      sub: user.id, 
-      email: user.email, 
-      role: user.role, 
-      tenantId: user.tenantId 
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId,
+      mustChangePassword: user.mustChangePassword,
     };
 
     return {

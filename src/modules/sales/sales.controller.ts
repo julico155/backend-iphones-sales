@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseUUIDPipe, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseUUIDPipe, Query, Req } from '@nestjs/common';
 import { SalesService } from './sales.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { SaleHistoryQueryDto } from './dto/sale-history-query.dto';
@@ -14,8 +14,10 @@ export class SalesController {
   @Post()
   create(
     @GetTenantId() tenantId: string,
-    @Body() createSaleDto: CreateSaleDto) {
-    return this.salesService.create(tenantId, createSaleDto);
+    @Body() createSaleDto: CreateSaleDto,
+    @Req() req: any,
+  ) {
+    return this.salesService.create(tenantId, req.user.sub, createSaleDto);
   }
 
   // Endpoint 1: Historial de ventas filtrado automáticamente por la tienda actual

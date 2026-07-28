@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { MustChangePasswordGuard } from './common/guards/must-change-password.guard';
 import { ProductsModule } from './modules/products/products.module';
 import { ItemsModule } from './modules/items/items.module';
 import { PrismaModule } from 'prisma/prisma.module';
@@ -28,6 +29,7 @@ import { PublicModule } from './modules/public/public.module';
   providers: [
     AppService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: MustChangePasswordGuard },
   ],
 })
 export class AppModule {}

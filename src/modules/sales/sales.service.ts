@@ -8,8 +8,7 @@ import { ItemStatus, PaymentMethod, SaleStatus } from '@prisma/client';
 export class SalesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(tenantId: string, createSaleDto: CreateSaleDto) {
-    // Si tu DTO no tiene paymentMethod, por defecto le pondremos CASH o lo puedes recibir en el body
+  async create(tenantId: string, userId: string, createSaleDto: CreateSaleDto) {
     const { customerName, customerPhone, paymentMethod, items } = createSaleDto;
 
     if (!items || items.length === 0) {
@@ -46,6 +45,7 @@ export class SalesService {
       const sale = await tx.sale.create({
         data: {
           tenantId: tenantId,
+          userId: userId,
           clientName: customerName || 'Cliente Mostrador',
           clientPhone: customerPhone || null,
           paymentMethod: paymentMethod,
@@ -139,7 +139,7 @@ export class SalesService {
   async getDashboardSummary(tenantId: string) {
     const saleWhere = { tenantId, status: SaleStatus.ACTIVE };
 
-    const [aggregations, saleDetails, totalItemsSold] = await Promise.all([
+    const [aggregations, saleDetails, totalItemsSold, availableItemsCount] = await Promise.all([
       this.prisma.sale.aggregate({
         where: saleWhere,
         _sum: { totalAmount: true },
@@ -150,6 +150,7 @@ export class SalesService {
         include: { item: { select: { costPrice: true } } },
       }),
       this.prisma.saleDetail.count({ where: { sale: saleWhere } }),
+      this.prisma.item.count({ where: { tenantId, status: 'AVAILABLE' } }),
     ]);
 
     const totalRevenue = Number(aggregations._sum.totalAmount ?? 0);
@@ -163,6 +164,7 @@ export class SalesService {
       totalRevenue,
       totalSalesCount: aggregations._count.id ?? 0,
       totalItemsSold,
+      availableItemsCount,
       totalCost,
       grossProfit,
       profitMarginPercent,

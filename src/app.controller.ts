@@ -1,12 +1,13 @@
 import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service';
+import { SkipThrottle } from '@nestjs/throttler';
+import { SkipPasswordCheck } from './common/decorators/skip-password-check.decorator';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
-
-  @Get()
-  getHello(): string {
-    return this.appService.getHello();
+  @Get('health')
+  @SkipThrottle()
+  @SkipPasswordCheck()
+  health() {
+    return { status: 'ok', timestamp: new Date().toISOString() };
   }
 }
