@@ -1,4 +1,4 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 
@@ -27,10 +27,32 @@ export class TenantsService {
     });
   }
 
-  // Opcional: Listar todos los tenants registrados
   async findAll() {
     return await this.prisma.tenant.findMany({
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async toggleActive(id: string) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id } });
+
+    if (!tenant) {
+      throw new NotFoundException(`El tenant con ID '${id}' no existe.`);
+    }
+
+    if (tenant.slug === 'system-admin') {
+      throw new ConflictException('No se puede desactivar el tenant del sistema.');
+    }
+
+    const updated = await this.prisma.tenant.update({
+      where: { id },
+      data: { isActive: !tenant.isActive },
+      select: { id: true, name: true, slug: true, isActive: true },
+    });
+
+    return {
+      message: `Tienda ${updated.isActive ? 'activada' : 'desactivada'} correctamente.`,
+      tenant: updated,
+    };
   }
 }

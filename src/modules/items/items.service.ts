@@ -36,11 +36,27 @@ export class ItemsService {
     }
   }
 
+  async softDelete(tenantId: string, id: string) {
+    const item = await this.prisma.item.findFirst({ where: { id, tenantId } });
+
+    if (!item) {
+      throw new NotFoundException(`El equipo con ID '${id}' no existe en esta tienda.`);
+    }
+
+    await this.prisma.item.update({
+      where: { id },
+      data: { status: 'INACTIVE' },
+    });
+
+    return { message: 'Equipo dado de baja del inventario correctamente.' };
+  }
+
   // Obtener todo el stock de esta tienda, incluyendo los detalles del modelo
   async findAll(tenantId: string) {
     return this.prisma.item.findMany({
       where: {
-        tenantId
+        tenantId,
+        status: { not: 'INACTIVE' },
       },
       include: {
         product: {

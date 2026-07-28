@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Body, UseInterceptors, UploadedFiles, Param, ParseUUIDPipe, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Body, UseInterceptors, UploadedFiles, Param, ParseUUIDPipe, UseGuards } from '@nestjs/common';
 import { ItemsService } from './items.service';
 import { GetTenantId } from '../../common/decorators/get-tenant.decorator';
 import { ItemCondition } from '@prisma/client';
@@ -54,6 +54,11 @@ export class ItemsController {
   @Get('search/:term')
   async searchItem(@GetTenantId() tenantId: string, @Param('term') term: string) {
     return this.itemsService.findByImeiOrSerial(tenantId, term);
+  }
+
+  @Delete(':id')
+  async remove(@GetTenantId() tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.itemsService.softDelete(tenantId, id);
   }
 
   @Patch(':id')

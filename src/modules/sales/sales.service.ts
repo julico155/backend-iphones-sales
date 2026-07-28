@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
+import { SaleHistoryQueryDto } from './dto/sale-history-query.dto';
 import { ItemStatus, PaymentMethod, SaleStatus } from '@prisma/client';
 
 @Injectable()
@@ -93,21 +94,45 @@ export class SalesService {
 
 
 
-  // Endpoint 1: Obtener el historial detallado de ventas de la tienda
-  async getHistoryByTenant(tenantId: string) {
-    return await this.prisma.sale.findMany({
-      where: { tenantId },
-      include: {
-        saleDetails: {
-          include: {
-            item: {
-              include: { product: true }
-            }
-          }
-        }
+  async getHistoryByTenant(tenantId: string, query: SaleHistoryQueryDto) {
+    const { status, from, to, page = 1, limit = 20 } = query;
+    const skip = (page - 1) * limit;
+
+    const where = {
+      tenantId,
+      ...(status && { status }),
+      ...(from || to ? {
+        saleDate: {
+          ...(from && { gte: new Date(from) }),
+          ...(to && { lte: new Date(to + 'T23:59:59.999Z') }),
+        },
+      } : {}),
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.sale.findMany({
+        where,
+        include: {
+          saleDetails: {
+            include: { item: { include: { product: true } } },
+          },
+        },
+        orderBy: { saleDate: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.sale.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
-      orderBy: { saleDate: 'desc' } // De la más reciente a la más antigua
-    });
+    };
   }
 
   // Endpoint 2: Métricas del Dashboard para la tienda

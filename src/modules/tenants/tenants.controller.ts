@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get , UseGuards} from '@nestjs/common';
+import { Controller, Post, Body, Get, Patch, Param, ParseUUIDPipe, UseGuards } from '@nestjs/common';
 import { TenantsService } from './tenants.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'; // Tu guardia JWT
@@ -18,5 +18,10 @@ export class TenantsController {
   @Get()
   async findAll() {
     return this.tenantsService.findAll();
+  }
+
+  @Patch(':id/toggle')
+  async toggleActive(@Param('id', ParseUUIDPipe) id: string) {
+    return this.tenantsService.toggleActive(id);
   }
 }

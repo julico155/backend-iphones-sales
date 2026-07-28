@@ -27,6 +27,7 @@ enum ItemStatus {
   AVAILABLE
   RESERVED
   SOLD
+  INACTIVE
 }
 
 enum PaymentMethod {
