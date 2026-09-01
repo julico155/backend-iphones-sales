@@ -2,6 +2,7 @@ import { Controller, Post, Body, Get, UseGuards, Patch, Param, ParseUUIDPipe, Re
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { CreateTeamUserDto } from './dto/create-team-user.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminSaaSGuard } from '../auth/guards/admin-saas.guard';
 import { TenantGuard } from '../auth/guards/tenant.guard';
@@ -46,6 +47,17 @@ export class UsersController {
     @Body() dto: CreateTeamUserDto,
   ) {
     return this.usersService.createForTenant(tenantId, dto);
+  }
+
+  @Patch('my-team/:id/reset-password')
+  @UseGuards(TenantGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  resetPassword(
+    @GetTenantId() tenantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ResetPasswordDto,
+  ) {
+    return this.usersService.resetPassword(tenantId, id, dto.newPassword);
   }
 
   @Patch('my-team/:id/toggle')

@@ -103,6 +103,23 @@ export class UsersService {
     };
   }
 
+  async resetPassword(tenantId: string, userId: string, newPassword: string) {
+    const user = await this.prisma.user.findFirst({ where: { id: userId, tenantId } });
+
+    if (!user) {
+      throw new NotFoundException(`El usuario con ID '${userId}' no existe en esta tienda.`);
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash, mustChangePassword: true },
+    });
+
+    return { message: 'Contraseña restablecida. El usuario deberá cambiarla en su próximo acceso.' };
+  }
+
   async toggleActive(tenantId: string, userId: string, requestingUserId: string) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, tenantId },
